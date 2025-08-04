@@ -17,6 +17,23 @@ struct Buffer {
   uint32_t *data;
 };
 
+struct Sprite {
+  size_t width, height;
+  uint8_t *data;
+};
+
+void buffer_sprite_draw(Buffer *buffer, const Sprite &sprite, size_t x, size_t y, uint32_t color) {
+  for(size_t xi = 0; xi < sprite.width; ++xi){
+    for(size_t yi = 0; yi < sprite.height; ++yi){
+      size_t sy = sprite.height - 1 + y - yi;
+      size_t sx = x + xi;
+      if(sprite.data[yi * sprite.width + xi] && sy < buffer->height && sx < buffer->width){
+        buffer->data[sy * buffer->width + sx] = color;
+      }
+    }
+  }
+}
+
 uint32_t rgb_to_uint32(uint8_t r, uint8_t g, uint8_t b) {
   return (r << 24) | (g << 16) | (b << 8) | 255;
 }
@@ -71,7 +88,8 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
   GLFWwindow *window;
-  window = glfwCreateWindow(buffer_width, buffer_height, "Space Invaders", NULL, NULL);
+  window = glfwCreateWindow(buffer_width, buffer_height, "Space Invaders", NULL,
+                            NULL);
   if (!window) {
     glfwTerminate();
     return -1;
@@ -97,14 +115,15 @@ int main() {
   buffer.width = buffer_width;
   buffer.height = buffer_height;
   buffer.data = new uint32_t[buffer_width * buffer_height];
+  uint32_t clear_color = rgb_to_uint32(0, 128, 0);
 
-  buffer_clear(&buffer, 0);
-
+  buffer_clear(&buffer, clear_color);
 
   GLuint buffer_texture;
   glGenTextures(1, &buffer_texture);
   glBindTexture(GL_TEXTURE_2D, buffer_texture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, buffer.width, buffer.height, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, buffer.data);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, buffer.width, buffer.height, 0,
+               GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, buffer.data);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -125,7 +144,6 @@ int main() {
                                 "   outColor = texture(buffer, TexCoord).rgb;\n"
                                 "}\n";
 
-  
   const char *vertex_shader =
       "\n"
       "#version 330\n"
@@ -185,15 +203,30 @@ int main() {
   glActiveTexture(GL_TEXTURE0);
   glBindVertexArray(fullscreen_triangle_vao);
 
-  uint32_t clear_color = rgb_to_uint32(0, 128, 0);
+  Sprite alien_sprite;
+  alien_sprite.width = 11;
+  alien_sprite.height = 8;
+  alien_sprite.data = new uint8_t[11 * 8]
+  {
+    0,0,1,0,0,0,0,0,1,0,0, // ..@.....@..
+    0,0,0,1,0,0,0,1,0,0,0, // ...@...@...
+    0,0,1,1,1,1,1,1,1,0,0, // ..@@@@@@@..
+    0,1,1,0,1,1,1,0,1,1,0, // .@@.@@@.@@.
+    1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@
+    1,0,1,1,1,1,1,1,1,0,1, // @.@@@@@@@.@
+    1,0,1,0,0,0,0,0,1,0,1, // @.@.....@.@
+    0,0,0,1,1,0,1,1,0,0,0  // ...@@.@@...
+  };
+
+  buffer_sprite_draw(&buffer, alien_sprite, 112, 128, rgb_to_uint32(128, 0, 0));
 
   // printf("%d\n", clear_color);
 
   while (!glfwWindowShouldClose(window)) {
-    // buffer_clear(&buffer, clear_color);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 
-    // glDrawArrays(GL_TRIANGLES, 0, 3);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer.width, buffer.height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, buffer.data);
+
     // glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     glfwSwapBuffers(window);
