@@ -8,6 +8,8 @@ GLFWerrorfun glfwSetErrorCallback(GLFWerrorfun cbfun);
 
 typedef void (*GLFWerrorfun)(int, const char *);
 
+int player_move_dir = 1;
+
 void error_callback(int error, const char *description) {
   fprintf(stderr, "Error: %s\n", description);
 }
@@ -324,6 +326,16 @@ int main() {
         alien_animation = nullptr;
       }
     }
+
+    if (game.player.x + player_sprite.width + player_move_dir >= game.width - 1) {
+      game.player.x = game.width - player_sprite.width - player_move_dir - 1;
+      player_move_dir *= -1;
+    }
+    else if ((int)game.player.x + player_move_dir <= 0) {
+      game.player.x = 0;
+      player_move_dir *= -1;
+    }
+    else game.player.x += player_move_dir;
 
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer.width, buffer.height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, buffer.data);
     
