@@ -10,6 +10,7 @@ typedef void (*GLFWKeyfun)(GLFWwindow*, int, int, int, int);
 bool game_running = false;
 int player_move_dir = 1;
 int move_dir = 0;
+bool fire_pressed = 0;
 
 GLFWerrorfun glfwSetErrorCallback(GLFWerrorfun cbfun);
 GLFWKeyfun glfwSetKeyCallback(GLFWkeyfun callback);
@@ -36,6 +37,10 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     else if (action == GLFW_RELEASE)
       move_dir += 1;
     break;
+  case GLFW_KEY_SPACE:
+    if (action == GLFW_RELEASE)
+      fire_pressed = true;
+    break;
   default:
     break;
   }
@@ -61,11 +66,21 @@ struct Player {
   size_t life;
 };
 
+struct Bullet
+{
+  size_t x, y;
+  int dir;
+};
+
+#define GAME_MAX_BULLETS 128
+
 struct Game {
   size_t width, height;
   size_t num_aliens;
+  size_t num_bullets;
   Alien *aliens;
   Player player;
+  Bullet bullets[GAME_MAX_BULLETS];
 };
 
 struct SpriteAnimation {
@@ -314,11 +329,22 @@ int main() {
     1,1,1,1,1,1,1,1,1,1,1, // @@@@@@@@@@@
   };
 
+  Sprite bullet_sprite;
+  bullet_sprite.width = 1;
+  bullet_sprite.height = 3;
+  bullet_sprite.data = new uint8_t[3]
+  {
+    1, // @
+    1, // @
+    1  // @
+  };
+
   Game game;
   game.width = buffer_width;
   game.height = buffer_height;
   game.num_aliens = 55;
   game.aliens = new Alien[game.num_aliens];
+  game.num_bullets = 0;
 
   game.player.x = 112 - 5;
   game.player.y = 32;
@@ -361,8 +387,6 @@ int main() {
       buffer_sprite_draw(&buffer, sprite, alien.x, alien.y, rgb_to_uint32(128, 0, 0));
     }
 
-    buffer_sprite_draw(&buffer, player_sprite, game.player.x, game.player.y, rgb_to_uint32(128, 0, 0));
-
     ++alien_animation->time;
     if (alien_animation->time == alien_animation->num_frames * alien_animation->frame_duration) {
       if (alien_animation->loop) {
@@ -373,6 +397,33 @@ int main() {
       }
     }
 
+    for (size_t bi = 0; bi < game.num_bullets; ++bi)
+    {
+      const Bullet& bullet = game.bullets[bi];
+      const Sprite& sprite = bullet_sprite;
+      buffer_sprite_draw(&buffer, sprite, bullet.x, bullet.y, rgb_to_uint32(128, 0, 0));
+    }
+    for (size_t bi = 0; bi < game.num_bullets;)
+    {
+      game.bullets[bi].y += game.bullets[bi].dir;
+      if (game.bullets[bi].y >= game.height || game.bullets[bi].y < bullet_sprite.height)
+      {
+        game.bullets[bi] = game.bullets[game.num_bullets - 1];
+        --game.num_bullets;
+        continue;
+      }
+      ++bi;
+    }
+
+    if (fire_pressed && game.num_bullets < GAME_MAX_BULLETS)
+    {
+      game.bullets[game.num_bullets].x = game.player.x + player_sprite.width / 2;
+      game.bullets[game.num_bullets].y = game.player.y + player_sprite.height;
+      game.bullets[game.num_bullets].dir = 2;
+      ++game.num_bullets;
+    }
+    fire_pressed = false;
+
     if (game.player.x + player_sprite.width + player_move_dir >= game.width - 1) {
       game.player.x = game.width - player_sprite.width - player_move_dir - 1;
       player_move_dir *= -1;
@@ -382,6 +433,8 @@ int main() {
       player_move_dir *= -1;
     }
     else game.player.x += player_move_dir;
+
+    buffer_sprite_draw(&buffer, player_sprite, game.player.x, game.player.y, rgb_to_uint32(128, 0, 0));
 
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer.width, buffer.height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, buffer.data);
     
