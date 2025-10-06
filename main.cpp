@@ -4,14 +4,41 @@
 #include <cstdint>
 #include <cstdio>
 
-GLFWerrorfun glfwSetErrorCallback(GLFWerrorfun cbfun);
-
 typedef void (*GLFWerrorfun)(int, const char *);
+typedef void (*GLFWKeyfun)(GLFWwindow*, int, int, int, int);
 
+bool game_running = false;
 int player_move_dir = 1;
+int move_dir = 0;
+
+GLFWerrorfun glfwSetErrorCallback(GLFWerrorfun cbfun);
+GLFWKeyfun glfwSetKeyCallback(GLFWkeyfun callback);
 
 void error_callback(int error, const char *description) {
   fprintf(stderr, "Error: %s\n", description);
+}
+
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+  switch (key) {
+  case GLFW_KEY_ESCAPE:
+    if (action == GLFW_PRESS)
+      game_running = false;
+    break;
+  case GLFW_KEY_RIGHT:
+    if (action == GLFW_PRESS)
+      move_dir += 1;
+    else if (action == GLFW_RELEASE)
+      move_dir -= 1;
+    break;
+  case GLFW_KEY_LEFT:
+    if (action == GLFW_PRESS)
+      move_dir -= 1;
+    else if (action == GLFW_RELEASE)
+      move_dir += 1;
+    break;
+  default:
+    break;
+  }
 }
 
 struct Buffer {
@@ -115,13 +142,14 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
   GLFWwindow *window;
-  window = glfwCreateWindow(buffer_width, buffer_height, "Space Invaders", NULL,
-                            NULL);
+  window = glfwCreateWindow(buffer_width, buffer_height, "Space Invaders", NULL, NULL);
   if (!window) {
     glfwTerminate();
     return -1;
   }
   glfwMakeContextCurrent(window);
+
+  glfwSetKeyCallback(window, key_callback);
 
   GLenum err = glewInit();
   if (err != GLEW_OK) {
@@ -304,8 +332,26 @@ int main() {
     }
   }
 
-  while (!glfwWindowShouldClose(window)) {
+  game_running = true;
+
+  // main loop
+  while (!glfwWindowShouldClose(window) && game_running) {
     buffer_clear(&buffer, clear_color);
+
+    player_move_dir = 2 * move_dir;
+
+    if (player_move_dir != 0)
+    {
+      if (game.player.x + player_sprite.width + player_move_dir >= game.width)
+      {
+        game.player.x = game.width - player_sprite.width;
+      }
+      else if ((int)game.player.x + player_move_dir <= 0)
+      {
+        game.player.x = 0;
+      }
+      else game.player.x += player_move_dir;
+    }
 
     for(size_t ai = 0; ai < game.num_aliens; ++ai)
     {
