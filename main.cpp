@@ -46,6 +46,11 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
   }
 }
 
+void window_size_callback(GLFWwindow *window, int width, int height)
+{
+	glViewport(0, 0, width, height);
+}
+
 struct Buffer {
   size_t width, height;
   uint32_t *data;
@@ -165,6 +170,8 @@ int main() {
   glfwMakeContextCurrent(window);
 
   glfwSetKeyCallback(window, key_callback);
+
+	glfwSetWindowSizeCallback(window, window_size_callback);
 
   GLenum err = glewInit();
   if (err != GLEW_OK) {
